@@ -24,7 +24,7 @@
 // to overcome issue with file size & stat limitations on 32 bit systems
 #define _FILE_OFFSET_BITS 64
 
-
+#include "config.h"
 #include <sys/types.h>
 #include <attr/xattr.h>
 #include <fcntl.h>
@@ -41,9 +41,6 @@
 #include <sys/statfs.h>
 #include <stdint.h>
 #include <time.h>
-
-#include "config.h"
-
 #include <unistd.h>
 
 #include "crc64.h"

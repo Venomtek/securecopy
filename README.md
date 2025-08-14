@@ -1,49 +1,48 @@
 # SecureCopy
-crccp and crcmv are based on GNU coreutils and add crc checksum functionality to cp and mv commands. 
-Checksums can optionally be stored in the file's xattr. 
-Checksum is generated on source file and verified agains destination file
+`crccp` and `crcmv` are based on GNU Core Utilities and add CRC checksum functionality to cp and mv commands. 
+Checksums can optionally be stored in the file's xattr, provided that file is not read only and that filesystem supports xattr.
+Checksum is generated on source file and verified against destination file
 
-The command crcsum can be used for further checksum analysis/verification, or for storing a checksum in the xattr of all files in a directory or filesystem.
+The command `crcsum` can be used for further checksum analysis/verification, or for storing a checksum in the xattr of all files in a directory or filesystem.
 I mount my filesystems with `mount -t ext4 -o noatime -o user_xattr <device> <dir>` or specify user_xattr in `/etc/fstab` under options.
-
 
 A use case:
 - I run `crcsum -u -r .` on my home directory before daily backup; I have xattr enabled on my filesystems, checksums are embedded in all files and stored in the backup.
 - I run once a month (cronjob) `crcsum -c -r <backupdestination>` to verify if backup is healthy
 - And yes, I do run once or twice a year into a corrupt file (bit rot?); ofcourse your luck varies with quality of HD's and size of your backups 
 
-
 ## Getting Started
-This package is tested on Debian buster & bullseye
+This package is tested on Debian Bookworm (AMD64)
 
 ### Prerequisites
-* Test if [GNU Coreutils 9.3](https://ftp.gnu.org/gnu/coreutils/coreutils-9.3.tar.xz) can be build and fix any build issues 
-* automake-1.15
+* Test if the plain-vanilla [GNU Core Utilities 9.7](https://ftp.gnu.org/gnu/coreutils/coreutils-9.7.tar.xz) can be build and fix any build issues 
+* No other dependencies beyond GNU Core Utilities dependencies.
 
 ### Installing
 * Download securecopy sources
-* Adapt `TARGETDIR="/opt"` in `build-secure-copy`, point to location where crccp, crcmv and crcsum should be located
+* Adapt `TARGETDIR="/opt"` in `build-secure-copy`, point to location where `crccp`, `crcmv` and `crcsum` should be located
 * `sudo ./build-secure-copy`: this will download coreutils package, apply patch files, build and copy target files to "TARGETDIR"
-* The other coreutils tools are not installed!
+* The other GNU Core Utilities tools are not installed!
 * "build-secure-copy" works for Debian OS-ses; adapt for other distributions (specifically, install required packages)
 
 ## Deployment
 Add to `~/.bashrc:`
-* alias cp='TARGETDIR/crccp -cx'
-* alias mv='TARGETDIR/crcmv -cx'
-* alias crcsum='TARGETDIR/crcsum'
+* `alias cp='TARGETDIR/crccp -cx'`
+* `alias mv='TARGETDIR/crcmv -cx'`
+* `alias crcsum='TARGETDIR/crcsum'`
 * (replace TARGETDIR with actual location)
 
 ## Usage
+* Assumption is that aliasses have been set, otherwise use iso e.g. `cp`, `crccp`.
 * `cp -c sourcefile destination` # will re-use crc stored with sourcefile (if any)
 * `cp -cx sourcefile destination` # will re-created crc of sourcefile befie copy is started
 
 ## Versioning
-* V9.3.0: based on coreutils v9.3; Added simple test
-* V9.0.0: based on coreutils v9.0; First 2 decimals of version number refer to coreutils version
-* V2.1: based on coreutils v8.32
-* V2.0: based on coreutils v8.31 
-* [Previous versions](https://sourceforge.net/projects/crcsum/https://sourceforge.net/projects/crcsum/)
+* V9.7.0: based on GNU Core Utilities v9.7; patches provided by [p1r473](https://github.com/p1r473). Minor changes implemented in verbose printing
+* V9.3.0: based on GNU Core Utilities v9.3; Added simple test
+* V9.0.0: based on GNU Core Utilities v9.0; First 2 decimals of version number refer to GNU Core Utilities version
+* V2.1: based on GNU Core Utilities v8.32
+* V2.0: based on GNU Core Utilities v8.31
 
 ## Authors
 Hans IJntema

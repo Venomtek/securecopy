@@ -1,9 +1,9 @@
---- /home/ijntema/programming/securecopy/core-utils-based/V9.3.0-beta/coreutils-9.3/src/mv.c	2023-04-10 12:14:08.000000000 +0200
-+++ /home/ijntema/programming/securecopy/core-utils-based/V9.3.0-beta/coreutils-9.3/src/crcmv.c	2023-04-29 19:43:02.116990278 +0200
-@@ -30,27 +30,32 @@
+--- /home/ijntema/truenas/programming/securecopy/core-utils-based/V9.7.0/coreutils-9.7/src/mv.c	2025-01-07 18:31:45.000000000 +0100
++++ /home/ijntema/truenas/programming/securecopy/core-utils-based/V9.7.0/coreutils-9.7/src/crcmv.c	2025-08-14 16:12:58.382368500 +0200
+@@ -28,22 +28,25 @@
+ #include "backupfile.h"
+ #include "copy.h"
  #include "cp-hash.h"
- #include "die.h"
- #include "error.h"
  #include "filenamecat.h"
  #include "remove.h"
  #include "renameatu.h"
@@ -16,49 +16,40 @@
 +
  /* The official name of this program (e.g., no 'g' prefix).  */
 -#define PROGRAM_NAME "mv"
-+/* HIJN */
 +#define PROGRAM_NAME "crcmv"
  
  #define AUTHORS \
    proper_name ("Mike Parker"), \
    proper_name ("David MacKenzie"), \
--  proper_name ("Jim Meyering")
-+  proper_name ("Jim Meyering"), \
-+  proper_name ("Checksum functionality only: Hans IJntema")
+   proper_name ("Jim Meyering")
  
  /* For long options that have no equivalent short option, use a
     non-character as a pseudo short option, starting with CHAR_MAX + 1.  */
  enum
  {
-   DEBUG_OPTION = CHAR_MAX + 1,
-   NO_COPY_OPTION,
-   STRIP_TRAILING_SLASHES_OPTION
- };
- 
-@@ -60,20 +65,22 @@
+@@ -59,20 +62,21 @@
  };
  static enum Update_type const update_type[] =
  {
-   UPDATE_ALL, UPDATE_NONE, UPDATE_OLDER,
+   UPDATE_ALL, UPDATE_NONE, UPDATE_NONE_FAIL, UPDATE_OLDER,
  };
  ARGMATCH_VERIFY (update_type_string, update_type);
  
  static struct option const long_options[] =
  {
-   {"backup", optional_argument, NULL, 'b'},
-+  /* HIJN */
-+  {"crc", optional_argument, NULL, 'c'},
-   {"context", no_argument, NULL, 'Z'},
-   {"debug", no_argument, NULL, DEBUG_OPTION},
-   {"force", no_argument, NULL, 'f'},
-   {"interactive", no_argument, NULL, 'i'},
-   {"no-clobber", no_argument, NULL, 'n'},
-   {"no-copy", no_argument, NULL, NO_COPY_OPTION},
-   {"no-target-directory", no_argument, NULL, 'T'},
-   {"strip-trailing-slashes", no_argument, NULL, STRIP_TRAILING_SLASHES_OPTION},
-   {"suffix", required_argument, NULL, 'S'},
-   {"target-directory", required_argument, NULL, 't'},
-@@ -116,20 +123,24 @@
+   {"backup", optional_argument, nullptr, 'b'},
++  {"crc", optional_argument, nullptr, 'c'},
+   {"context", no_argument, nullptr, 'Z'},
+   {"debug", no_argument, nullptr, DEBUG_OPTION},
+   {"exchange", no_argument, nullptr, EXCHANGE_OPTION},
+   {"force", no_argument, nullptr, 'f'},
+   {"interactive", no_argument, nullptr, 'i'},
+   {"no-clobber", no_argument, nullptr, 'n'},   /* Deprecated.  */
+   {"no-copy", no_argument, nullptr, NO_COPY_OPTION},
+   {"no-target-directory", no_argument, nullptr, 'T'},
+   {"strip-trailing-slashes", no_argument, nullptr,
+    STRIP_TRAILING_SLASHES_OPTION},
+@@ -117,20 +121,22 @@
    x->preserve_all_root = false;
  }
  
@@ -69,10 +60,8 @@
  
    cp_options_default (x);
    x->copy_as_regular = false;  /* FIXME: maybe make this an option */
-+  /* HIJN */
 +  x->crc = false;
 +  x->crc_with_xattr = false;
-+  /* END HIJN */
    x->reflink_mode = REFLINK_AUTO;
    x->dereference = DEREF_NEVER;
    x->unlink_dest_before_opening = false;
@@ -83,7 +72,7 @@
    x->install_mode = false;
    x->one_file_system = false;
    x->preserve_ownership = true;
-@@ -262,20 +273,25 @@
+@@ -263,20 +269,28 @@
        fputs (_("\
  Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.\n\
  "), stdout);
@@ -94,22 +83,25 @@
        --backup[=CONTROL]       make a backup of each existing destination file\
  \n\
    -b                           like --backup but does not accept an argument\n\
-+  -c --crc[=x]                 check whether copy was successfull with checksum comparison\n\
-+                               x: use (fresh) checksum stored in xattr or if not present,\n\
-+                               store checksum in xattr of src and des\n\
-+                               See also tool <crcsum> in same secure copy package\n\
-+                               implies --preserve=xattr\n\
++  -c --crc                     check whether move was successfull with checksum comparison\n\
++                                 checksum is calculated during move\n\
++                                 checksum is not stored in xattr or compared against xattr checksum\n\
++  -cx --crc=x                  use checksum stored in xattr or if not present or stale,\n\
++                                 store/update checksum in xattr of src and des\n\
++                                 See also tool <crcsum> in same secure copy package\n\
++                                 implies --preserve=all\n\
++                                 verbose flag is supported\n\
  "), stdout);
        fputs (_("\
        --debug                  explain how a file is copied.  Implies -v\n\
  "), stdout);
        fputs (_("\
+       --exchange               exchange source and destination\n\
+ "), stdout);
+       fputs (_("\
    -f, --force                  do not prompt before overwriting\n\
    -i, --interactive            prompt before overwrite\n\
-   -n, --no-clobber             do not overwrite an existing file\n\
- If you specify more than one of -i, -f, -n, only the final one takes effect.\n\
- "), stdout);
-@@ -330,30 +346,60 @@
+@@ -334,30 +348,58 @@
    bindtextdomain (PACKAGE, LOCALEDIR);
    textdomain (PACKAGE);
  
@@ -120,9 +112,8 @@
    /* Try to disable the ability to unlink a directory.  */
    priv_set_remove_linkdir ();
  
--  while ((c = getopt_long (argc, argv, "bfint:uvS:TZ", long_options, NULL))
-+  /* HIJN */
-+  while ((c = getopt_long (argc, argv, "bc::fint:uvS:TZ", long_options, NULL))
+-  while ((c = getopt_long (argc, argv, "bfint:uvS:TZ", long_options, nullptr))
++  while ((c = getopt_long (argc, argv, "bc::fint:uvS:TZ", long_options, nullptr))
           != -1)
      {
        switch (c)
@@ -132,17 +123,16 @@
            if (optarg)
              version_control_string = optarg;
            break;
-+
-+        /* HIJN */
 +        case 'c':
 +          if (optarg)
 +          {
 +            if ( strcmp( optarg, "x") == 0 )
 +            {
-+              x.crc_with_xattr = true;
-+              x.crc = false;
-+
-+              // will this stick if --no-preserve=xattr?
++//            x.crc = false;
++//			  x.crc_with_xattr = true;
++              x.crc = true;
++			  x.crc_with_xattr = false;
++			  
 +              x.preserve_mode = true;
 +              x.preserve_timestamps = true;
 +              x.preserve_ownership = true;
@@ -155,12 +145,12 @@
 +          }
 +          else
 +          {
-+            x.crc = true;
-+            x.crc_with_xattr = false;
++//            x.crc = true;
++//            x.crc_with_xattr = false;
++            x.crc = false;
++            x.crc_with_xattr = true;
 +          }
 +          break;
-+        /* END HIJN */
-+
          case 'f':
            x.interactive = I_ALWAYS_YES;
            break;
@@ -168,6 +158,6 @@
            x.interactive = I_ASK_USER;
            break;
          case 'n':
-           x.interactive = I_ALWAYS_NO;
+           x.interactive = I_ALWAYS_SKIP;
            break;
          case DEBUG_OPTION:

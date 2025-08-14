@@ -1,12 +1,12 @@
---- /home/ijntema/programming/securecopy/core-utils-based/V9.3.0-beta/coreutils-9.3/m4/cu-progs.m4.org	2023-04-29 19:28:37.724014763 +0200
-+++ /home/ijntema/programming/securecopy/core-utils-based/V9.3.0-beta/coreutils-9.3/m4/cu-progs.m4	2023-04-29 19:28:37.724014763 +0200
-@@ -87,20 +87,23 @@
- gl_ADD_PROG([optional_bin_progs], [tsort])
+--- /home/ijntema/truenas/programming/securecopy/core-utils-based/V9.7.0/coreutils-9.7/m4/cu-progs.m4.org	2025-08-14 14:54:55.289733400 +0200
++++ /home/ijntema/truenas/programming/securecopy/core-utils-based/V9.7.0/coreutils-9.7/m4/cu-progs.m4	2025-08-14 14:54:55.295975300 +0200
+@@ -88,20 +88,23 @@
  gl_ADD_PROG([optional_bin_progs], [tty])
  gl_ADD_PROG([optional_bin_progs], [uname])
  gl_ADD_PROG([optional_bin_progs], [unexpand])
  gl_ADD_PROG([optional_bin_progs], [uniq])
  gl_ADD_PROG([optional_bin_progs], [unlink])
+ gl_ADD_PROG([optional_bin_progs], [uptime])
  gl_ADD_PROG([optional_bin_progs], [vdir])
  gl_ADD_PROG([optional_bin_progs], [wc])
  gl_ADD_PROG([optional_bin_progs], [whoami])

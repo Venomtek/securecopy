@@ -22,29 +22,28 @@ CURRENTDIR=${PWD}
 BINDIR="${CURRENTDIR}/bin"
 
 # Target coreutils (tested version)
-COREUTILS="coreutils-9.3"
+COREUTILS="coreutils-9.7"
 
 # required on debian
 # Can be commented-out after first run
-apt-get update && apt-get install -y --no-install-recommends -qq \
-        procps \
-        git \
-        build-essential \
-        automake \
-        texinfo \
-        ca-certificates \
-        wget \
-        libattr1-dev
+#apt-get update && apt-get install -y --no-install-recommends -qq \
+#        procps \
+#        git \
+#        build-essential \
+#        automake \
+#        texinfo \
+#        ca-certificates \
+#        wget \
+#        libattr1-dev
 
-# Coreutils
-# Can be commented-out after first run
-wget -v -O ${CURRENTDIR}/${COREUTILS}.tar.xz  https://ftp.gnu.org/gnu/coreutils/${COREUTILS}.tar.xz
+# Download coreutils
+if ! test -f ${CURRENTDIR}/${COREUTILS}.tar.xz; then
+  wget -v -O ${CURRENTDIR}/${COREUTILS}.tar.xz  https://ftp.gnu.org/gnu/coreutils/${COREUTILS}.tar.xz
+fi
 
 # Clean source directory
 rm -rf ${CURRENTDIR}/${COREUTILS}
-
 rm ${CURRENTDIR}/bin/*
-
 
 # Extract Coreutils
 cd ${CURRENTDIR}
@@ -101,19 +100,19 @@ echo "${version_gnu}-${version_crc}" > ${CURRENTDIR}/${COREUTILS}/.version
 sed -i "s/m4_esyscmd(\[build-aux\/git-version-gen .tarball-version\])/${version}/g" ${CURRENTDIR}/${COREUTILS}/configure.ac
 
 # Sometimes required:
-#cd ${CURRENTDIR}/${COREUTILS}
-#make distclean
+cd ${CURRENTDIR}/${COREUTILS}
+make distclean
 
 # Configure
 cd ${CURRENTDIR}/${COREUTILS}
-export FORCE_UNSAFE_CONFIGURE=1
+#export FORCE_UNSAFE_CONFIGURE=1
 ./configure
 make
 
 cd ${CURRENTDIR}/${COREUTILS}/src
 cp   crccp crcmv crcsum  ${BINDIR}/
 chmod 555 ${BINDIR}/*
-chown root.root ${BINDIR}/*
+chown root:root ${BINDIR}/*
 echo "crccp crcmv and crcsum copied to ${BINDIR}"
 
 

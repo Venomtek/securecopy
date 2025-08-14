@@ -1,7 +1,7 @@
---- /home/ijntema/programming/securecopy/core-utils-based/V9.3.0-beta/coreutils-9.3/src/cp.c	2023-04-10 12:14:08.000000000 +0200
-+++ /home/ijntema/programming/securecopy/core-utils-based/V9.3.0-beta/coreutils-9.3/src/crccp.c	2023-04-29 19:42:51.173332110 +0200
-@@ -31,26 +31,28 @@
- #include "error.h"
+--- /home/ijntema/truenas/programming/securecopy/core-utils-based/V9.7.0/coreutils-9.7/src/cp.c	2025-01-07 18:31:45.000000000 +0100
++++ /home/ijntema/truenas/programming/securecopy/core-utils-based/V9.7.0/coreutils-9.7/src/crccp.c	2025-08-14 16:12:33.103554700 +0200
+@@ -30,26 +30,28 @@
+ #include "cp-hash.h"
  #include "filenamecat.h"
  #include "ignore-value.h"
  #include "quote.h"
@@ -16,7 +16,7 @@
 +#define PROGRAM_NAME "crccp"
  
  #define AUTHORS \
-   proper_name ("Torbjorn Granlund"), \
+   proper_name_lite ("Torbjorn Granlund", "Torbj\303\266rn Granlund"), \
    proper_name ("David MacKenzie"), \
 -  proper_name ("Jim Meyering")
 +  proper_name ("Jim Meyering"), \
@@ -32,29 +32,29 @@
    size_t slash_offset;
    struct dir_attr *next;
 @@ -111,20 +113,22 @@
-   UPDATE_ALL, UPDATE_NONE, UPDATE_OLDER,
+   UPDATE_ALL, UPDATE_NONE, UPDATE_NONE_FAIL, UPDATE_OLDER,
  };
  ARGMATCH_VERIFY (update_type_string, update_type);
  
  static struct option const long_opts[] =
  {
-   {"archive", no_argument, NULL, 'a'},
-   {"attributes-only", no_argument, NULL, ATTRIBUTES_ONLY_OPTION},
-   {"backup", optional_argument, NULL, 'b'},
-   {"copy-contents", no_argument, NULL, COPY_CONTENTS_OPTION},
+   {"archive", no_argument, nullptr, 'a'},
+   {"attributes-only", no_argument, nullptr, ATTRIBUTES_ONLY_OPTION},
+   {"backup", optional_argument, nullptr, 'b'},
+   {"copy-contents", no_argument, nullptr, COPY_CONTENTS_OPTION},
 +  /* HIJN */
-+  {"crc", optional_argument, NULL, 'c'},
-   {"debug", no_argument, NULL, DEBUG_OPTION},
-   {"dereference", no_argument, NULL, 'L'},
-   {"force", no_argument, NULL, 'f'},
-   {"interactive", no_argument, NULL, 'i'},
-   {"link", no_argument, NULL, 'l'},
-   {"no-clobber", no_argument, NULL, 'n'},
-   {"no-dereference", no_argument, NULL, 'P'},
-   {"no-preserve", required_argument, NULL, NO_PRESERVE_ATTRIBUTES_OPTION},
-   {"no-target-directory", no_argument, NULL, 'T'},
-   {"one-file-system", no_argument, NULL, 'x'},
-@@ -166,20 +170,25 @@
++  {"crc", optional_argument, nullptr, 'c'},
+   {"debug", no_argument, nullptr, DEBUG_OPTION},
+   {"dereference", no_argument, nullptr, 'L'},
+   {"force", no_argument, nullptr, 'f'},
+   {"interactive", no_argument, nullptr, 'i'},
+   {"link", no_argument, nullptr, 'l'},
+   {"no-clobber", no_argument, nullptr, 'n'},   /* Deprecated.  */
+   {"no-dereference", no_argument, nullptr, 'P'},
+   {"no-preserve", required_argument, nullptr, NO_PRESERVE_ATTRIBUTES_OPTION},
+   {"no-target-directory", no_argument, nullptr, 'T'},
+   {"one-file-system", no_argument, nullptr, 'x'},
+@@ -169,20 +173,28 @@
  
        emit_mandatory_arg_note ();
  
@@ -65,11 +65,14 @@
  \n\
    -b                           like --backup but does not accept an argument\n\
        --copy-contents          copy contents of special files when recursive\n\
-+  -c --crc[=x]                 check whether copy was successfull with checksum comparison\n\
-+                               x: use (fresh) checksum stored in xattr or if not present,\n\
-+                               store checksum in xattr of src and des\n\
-+                               See also tool <crcsum> in same secure copy package\n\
-+                               implies --preserve=all\n\
++  -c --crc                     check whether copy was successfull with checksum comparison\n\
++                                 checksum is calculated during copy\n\
++                                 checksum is not stored in xattr or compared against xattr checksum\n\
++  -cx --crc=x                  use checksum stored in xattr or if not present or stale,\n\
++                                 store/update checksum in xattr of src and des\n\
++                                 See also tool <crcsum> in same secure copy package\n\
++                                 implies --preserve=all\n\
++                                 verbose flag is supported\n\
    -d                           same as --no-dereference --preserve=links\n\
  "), stdout);
        fputs (_("\
@@ -80,7 +83,7 @@
                                   opened, remove it and try again (this option\n\
                                   is ignored when the -n option is also used)\n\
    -i, --interactive            prompt before overwrite (overrides a previous -n\
-@@ -806,20 +815,24 @@
+@@ -823,20 +835,24 @@
      }
  
    return ok;
@@ -105,7 +108,7 @@
    x->one_file_system = false;
    x->reflink_mode = REFLINK_AUTO;
  
-@@ -971,21 +984,22 @@
+@@ -989,21 +1005,22 @@
    set_program_name (argv[0]);
    setlocale (LC_ALL, "");
    bindtextdomain (PACKAGE, LOCALEDIR);
@@ -119,7 +122,7 @@
 -  while ((c = getopt_long (argc, argv, "abdfHilLnprst:uvxPRS:TZ",
 +  /* HIJN */
 +  while ((c = getopt_long (argc, argv, "abc::dfHilLnprst:uvxPRS:TZ",
-                            long_opts, NULL))
+                            long_opts, nullptr))
           != -1)
      {
        switch (c)
@@ -129,7 +132,7 @@
                                       sparse_type_string, sparse_type);
            break;
  
-@@ -1011,20 +1025,48 @@
+@@ -1029,20 +1046,50 @@
            x.reduce_diagnostics = true;
            x.recursive = true;
            break;
@@ -146,8 +149,9 @@
 +          {
 +            if ( strcmp( optarg, "x") == 0 )
 +            {
-+              x.crc_with_xattr = true;
++			  // flag: -cx
 +              x.crc = false;
++			  x.crc_with_xattr = true;
 +
 +              // will this stick if --no-preserve=xattr?
 +              x.preserve_mode = true;
@@ -160,10 +164,11 @@
 +              x.preserve_xattr = true;
 +            }
 +          }
-+          else
++          else // commandline option = -cx
 +          {
++			// flag: -c
 +            x.crc = true;
-+            x.crc_with_xattr = false;
++            x.crc_with_xattr = false;			
 +          }
 +          break;
 +        /* END HIJN */
